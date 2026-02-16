@@ -89,10 +89,11 @@
 
   let W = 0, H = 0;
 
+  // Layout: 3:2 (portrait) playfield + bottom control area
   const layout = {
     pad: 14,
-    controlH: 170,
-    field: { x:0, y:0, s:0 },
+    controlH: 180,
+    field: { x:0, y:0, w:0, h:0 }, // ✅ w:h = 2:3
   };
 
   // ---------------------------
@@ -104,17 +105,20 @@
   const COLOR_STROKE = "rgba(5,8,12,0.85)";
   const COLOR_PLAYER_FILL = "#f1f6ff";
   const COLOR_PLAYER_TEXT = "#141a24";
+  const COLOR_HINT_GREEN = "rgba(168, 255, 120, 0.95)"; // 연두색
 
   // ---------------------------
-  // 4) STATE
+  // 4) GAME STATE
   // ---------------------------
   const STATE = { START: "start", PLAY: "play", OVER: "over" };
   let state = STATE.START;
 
+  // World coords inside field rectangle: [0..Fw], [0..Fh]
   function toScreen(wx, wy){
     return { x: layout.field.x + wx, y: layout.field.y + wy };
   }
 
+  // Player
   const player = {
     x: 0, y: 0,
     r: 18,
@@ -124,48 +128,61 @@
     invincible: false,
     blinkT: 0,
     blinkTotal: 0,
-    blinkCount: 0,      // number of toggles elapsed
-    blinkMax: 10,       // ✅ 10회 (히라5/한글5)
-    blinkInterval: 0.198, // ✅ 0.18에서 10% 느리게
+    blinkCount: 0,
+    blinkMax: 10,        // 10회
+    blinkInterval: 0.198, // 10% 느리게
     blinkShowAlt: false,
     blinkA: "아",
     blinkB: "あ",
   };
 
+  // Joystick
   const joy = {
     active: false,
     pointerId: null,
     baseX: 0, baseY: 0,
     knobX: 0, knobY: 0,
-    baseR: 54,
-    knobR: 22,
+    baseR: 56,
+    knobR: 24,
     dx: 0, dy: 0,
     area: { x:0, y:0, w:0, h:0 }
   };
 
-  // ✅ 모바일 글자 크기 키우기: 기준을 360이 아니라 320으로 잡고,
-  // 스케일 상한도 조금 올림
+  // UI rects for start screen buttons
+  const ui = {
+    startBtn: { x:0,y:0,w:0,h:0 },
+    helpBtn:  { x:0,y:0,w:0,h:0 },
+    helpOpen: false,
+    helpPanel: { x:0,y:0,w:0,h:0 }
+  };
+
+  // Scale helper (mobile-first)
   function sp(px){
-    const s = layout.field.s || 360;
-    const k = clamp(s / 320, 0.95, 1.70); // 폰에서 좀 더 큼, 태블릿도 충분히 커짐
+    const base = Math.min(layout.field.w || 320, 360);
+    const k = clamp((layout.field.w || 320) / 320, 0.98, 1.85);
     return Math.round(px * k);
   }
 
   let lives = 3;
   let score = 0;
 
-  // 난이도 타이머
-  let timeAlive = 0;      // 스폰/최대탄막용(그대로)
-  let speedTime = 0;      // ✅ 탄막 속도 증가용(피격 후 리셋)
+  // Difficulty timers
+  let timeAlive = 0; // spawn/max bullets
+  let speedTime = 0; // bullet speed ramp (resets on hit)
 
+  // Hint effect (Request 6)
+  let highlightCorrect = false; // when true, correct bullets are green; resets when correct eaten or hit/death
+
+  // Bullets: {x,y,vx,vy,text,pair,r,isHint}
   const bullets = [];
   let spawnAcc = 0;
-  let spawnRate = 1.6;
-  let maxBullets = 180;
+  let spawnRate = 0.8;   // ✅ 전체 절반 수준(기존 1.6)
+  let maxBullets = 90;   // ✅ 전체 절반 수준(기존 180)
 
+  // Aura (correct eat clears nearby bullets)
   let auraT = 0;
   const auraDuration = 0.6;
-  let auraRadius = 110;
+  let auraRadius = 120;
 
   const mistakes = new Map();
 
@@ -208,6 +225,10 @@
     score += 120;
     auraT = auraDuration;
     clearBulletsNearPlayer();
+
+    // ✅ hint effect resets when you eat a correct bullet
+    highlightCorrect = false;
+
     setRandomPlayerChar(player.char);
   }
 
@@ -228,7 +249,8 @@
     addMistake(pairWrong);
     score = Math.max(0, score - 80);
 
-    // ✅ 피격 순간: 전체 탄막 제거
+    // ✅ hit resets hint and clears all bullets
+    highlightCorrect = false;
     clearAllBullets();
 
     if (lives <= 0) {
@@ -236,35 +258,33 @@
       return;
     }
 
-    // ✅ 속도 타이머 리셋 (탄막 재진입 시 "초기 속도"로 시작하게)
+    // ✅ reset speed ramp
     speedTime = 0;
-
     startInvincibleBlink();
   }
 
   // ---------------------------
-  // 5) LAYOUT / RESIZE
+  // 5) LAYOUT / RESIZE (Request 1: 3:2 portrait)
   // ---------------------------
   function updateJoystickLayout(){
-    const yTop = layout.field.y + layout.field.s + layout.pad;
+    const yTop = layout.field.y + layout.field.h + layout.pad;
     const areaH = H - yTop;
 
-    joy.baseR = clamp(sp(56), 46, 74);
-    joy.knobR = clamp(Math.round(joy.baseR * 0.42), 18, 32);
+    joy.baseR = clamp(sp(56), 46, 78);
+    joy.knobR = clamp(Math.round(joy.baseR * 0.42), 18, 34);
 
     joy.area.x = 0;
     joy.area.y = yTop;
     joy.area.w = W;
     joy.area.h = areaH;
 
-    // 조이스틱 위치 규칙(이전 요구 유지)
+    // joystick position rule from previous discussion
     const PHONE_W = 420;
     const centerX = W / 2;
-    const lockFromRight = PHONE_W / 2; // 210
+    const lockFromRight = PHONE_W / 2;
     const lockedX = W - lockFromRight;
 
     let targetX = (W <= PHONE_W) ? centerX : lockedX;
-
     const minX = layout.pad + joy.baseR;
     const maxX = W - layout.pad - joy.baseR;
     targetX = clamp(targetX, minX, maxX);
@@ -277,9 +297,11 @@
       joy.knobY = joy.baseY;
     }
 
-    player.r = clamp(sp(22), 18, 30);
-    player.speed = clamp(layout.field.s * 0.58, 190, 340);
-    auraRadius = clamp(layout.field.s * 0.30, 100, 190);
+    // scale player + aura
+    player.r = clamp(sp(22), 18, 32);
+    // ✅ request2: sensitivity up (slightly faster)
+    player.speed = clamp(layout.field.w * 0.85, 220, 430);
+    auraRadius = clamp(layout.field.w * 0.50, 120, 240);
   }
 
   function resize() {
@@ -296,13 +318,19 @@
     canvas.style.height = H + "px";
     ctx.setTransform(dpr,0,0,dpr,0,0);
 
-    layout.controlH = clamp(Math.round(H * 0.26), 160, 260);
+    layout.controlH = clamp(Math.round(H * 0.26), 160, 270);
 
     const usableH = H - layout.controlH - layout.pad*2;
     const usableW = W - layout.pad*2;
-    const s = Math.max(260, Math.min(usableW, usableH)); // 조금 더 큰 최소값
-    layout.field.s = s;
-    layout.field.x = Math.floor((W - s) / 2);
+
+    // Want w:h = 2:3 => h = 1.5w
+    // So w <= usableW and 1.5w <= usableH => w <= usableH/1.5
+    const w = Math.max(260, Math.min(usableW, usableH / 1.5));
+    const h = w * 1.5;
+
+    layout.field.w = Math.floor(w);
+    layout.field.h = Math.floor(h);
+    layout.field.x = Math.floor((W - layout.field.w) / 2);
     layout.field.y = layout.pad;
 
     updateJoystickLayout();
@@ -313,7 +341,7 @@
   resize();
 
   // ---------------------------
-  // 6) INPUT
+  // 6) JOYSTICK INPUT (Request 2: sensitivity up)
   // ---------------------------
   function resetJoystick(){
     joy.active = false;
@@ -328,15 +356,28 @@
     const dy = sy - joy.baseY;
     const dist = Math.hypot(dx,dy) || 1;
     const max = joy.baseR - joy.knobR;
-    const t = Math.min(1, dist / max);
 
-    const kx = joy.baseX + dx/dist * max * t;
-    const ky = joy.baseY + dy/dist * max * t;
+    const t = Math.min(1, dist / max);
+    const kx = joy.baseX + (dx/dist) * max * t;
+    const ky = joy.baseY + (dy/dist) * max * t;
 
     joy.knobX = kx;
     joy.knobY = ky;
-    joy.dx = (kx - joy.baseX) / max;
-    joy.dy = (ky - joy.baseY) / max;
+
+    let ndx = (kx - joy.baseX) / max;
+    let ndy = (ky - joy.baseY) / max;
+
+    // ✅ sensitivity curve: more responsive near center
+    // magnitude curve mag^0.70
+    const mag = clamp(Math.hypot(ndx, ndy), 0, 1);
+    if (mag > 0.0001) {
+      const curved = Math.pow(mag, 0.70);
+      const s = curved / mag;
+      ndx *= s; ndy *= s;
+    }
+
+    joy.dx = ndx;
+    joy.dy = ndy;
   }
 
   function isInJoystickArea(sx, sy){
@@ -344,12 +385,39 @@
         && sy >= joy.area.y && sy <= joy.area.y + joy.area.h;
   }
 
+  function inRect(px, py, r){
+    return px >= r.x && px <= r.x + r.w && py >= r.y && py <= r.y + r.h;
+  }
+
   canvas.addEventListener("pointerdown", (ev) => {
     ev.preventDefault();
     const sx = ev.clientX, sy = ev.clientY;
 
-    if (state !== STATE.PLAY) { startGame(); return; }
+    if (state === STATE.START) {
+      // Request3: help button toggles help text
+      if (inRect(sx, sy, ui.helpBtn)) {
+        ui.helpOpen = !ui.helpOpen;
+        return;
+      }
+      // if help panel open, tap outside closes
+      if (ui.helpOpen && inRect(sx, sy, ui.helpPanel) === false) {
+        ui.helpOpen = false;
+        return;
+      }
+      // start
+      if (inRect(sx, sy, ui.startBtn)) {
+        startGame();
+      }
+      return;
+    }
 
+    if (state === STATE.OVER) {
+      // tap anywhere to restart
+      startGame();
+      return;
+    }
+
+    // PLAY
     if (isInJoystickArea(sx, sy) && !joy.active) {
       joy.active = true;
       joy.pointerId = ev.pointerId;
@@ -369,42 +437,72 @@
   canvas.addEventListener("pointercancel", (ev) => { if (ev.pointerId === joy.pointerId) resetJoystick(); });
 
   // ---------------------------
-  // 7) SPAWN / GAME
+  // 7) SPAWN (Request4,5,6)
   // ---------------------------
   function spawnBullet() {
     if (bullets.length >= maxBullets) return;
 
-    const S = layout.field.s;
-    const pair = choice(PAIRS);
+    const Fw = layout.field.w;
+    const Fh = layout.field.h;
 
-    const wantHiraBullets = isPlayerHangul();
-    const text = wantHiraBullets ? pair.hira : pair.hangul;
+    // Decide hint bullet spawn
+    // keep fairly rare; a little more frequent when not active
+    const hintChance = highlightCorrect ? 0.02 : 0.05;
+    const isHint = Math.random() < hintChance;
 
+    let pair;
+    let text;
+    if (isHint) {
+      pair = null;
+      text = "?";
+    } else {
+      // Request5: correct bullets appear more often
+      // Choose player's correct pair with higher probability
+      const correctPair = getPlayerPair();
+
+      const correctChance = 0.42; // 꽤 많이
+      if (Math.random() < correctChance) {
+        pair = correctPair;
+      } else {
+        // choose random NOT equal to correctPair
+        do { pair = choice(PAIRS); } while (pair === correctPair);
+      }
+
+      // opposite script only
+      const wantHiraBullets = isPlayerHangul();
+      text = wantHiraBullets ? pair.hira : pair.hangul;
+    }
+
+    // Spawn from random edge
     const edge = randInt(4);
     const pad = 12;
     let x, y;
-    if (edge === 0) { x = Math.random()*S; y = -pad; }
-    else if (edge === 1) { x = S+pad; y = Math.random()*S; }
-    else if (edge === 2) { x = Math.random()*S; y = S+pad; }
-    else { x = -pad; y = Math.random()*S; }
+    if (edge === 0) { x = Math.random()*Fw; y = -pad; }
+    else if (edge === 1) { x = Fw+pad; y = Math.random()*Fh; }
+    else if (edge === 2) { x = Math.random()*Fw; y = Fh+pad; }
+    else { x = -pad; y = Math.random()*Fh; }
 
+    // Move toward player
     const dx = (player.x - x);
     const dy = (player.y - y);
     const dist = Math.max(0.001, Math.hypot(dx,dy));
     const dirx = dx/dist, diry = dy/dist;
 
-    // ✅ 속도는 speedTime 기준(피격 후 리셋 가능)
-    // (이전 요청 유지) 시작 1/2, 증가 1/3
+    // Speed ramp based on speedTime (resets on hit)
     const base = 60 + Math.min(260, speedTime * 2);
     const jitter = (Math.random()*26 - 13);
     const speed = base + jitter;
 
-    const r = clamp(Math.round(S*0.03), 12, 18);
-    bullets.push({ x, y, vx: dirx*speed, vy: diry*speed, text, pair, r });
+    // Bullet radius scales with field width
+    const r = clamp(Math.round(Fw*0.045), 14, 22);
+
+    bullets.push({ x, y, vx: dirx*speed, vy: diry*speed, text, pair, r, isHint });
   }
 
   function startGame(){
     state = STATE.PLAY;
+    ui.helpOpen = false;
+
     bullets.length = 0;
     mistakes.clear();
 
@@ -413,16 +511,22 @@
     timeAlive = 0;
     speedTime = 0;
 
+    // Request4: half volume
     spawnAcc = 0;
-    spawnRate = 1.6;
-    maxBullets = 180;
+    spawnRate = 0.8;
+    maxBullets = 90;
 
     auraT = 0;
     player.invincible = false;
 
-    const S = layout.field.s;
-    player.x = S*0.5;
-    player.y = S*0.65;
+    // reset hint effect
+    highlightCorrect = false;
+
+    // start center-ish
+    const Fw = layout.field.w;
+    const Fh = layout.field.h;
+    player.x = Fw*0.5;
+    player.y = Fh*0.68;
     setRandomPlayerChar(null);
 
     resetJoystick();
@@ -443,7 +547,7 @@
   }
 
   function drawTextWithStroke(text, x, y, fontPx, fill, stroke, strokeW=2) {
-    ctx.font = `800 ${fontPx}px system-ui, -apple-system, "Noto Sans KR", "Noto Sans JP", "Apple SD Gothic Neo", sans-serif`;
+    ctx.font = `900 ${fontPx}px system-ui, -apple-system, "Noto Sans KR", "Noto Sans JP", "Apple SD Gothic Neo", sans-serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.lineWidth = strokeW;
@@ -456,28 +560,27 @@
   function renderFieldFrame(){
     ctx.strokeStyle = "rgba(233,238,248,0.10)";
     ctx.lineWidth = 1;
-    roundRect(ctx, layout.field.x, layout.field.y, layout.field.s, layout.field.s, sp(16));
+    roundRect(ctx, layout.field.x, layout.field.y, layout.field.w, layout.field.h, sp(16));
     ctx.stroke();
   }
 
   function renderHUD(){
+    // Request5: hide the "correct hint" entirely.
+    // Keep only score/lives, smaller.
     const pad = sp(12);
-    const correct = currentCorrectText();
 
     ctx.save();
     ctx.beginPath();
-    ctx.rect(layout.field.x, layout.field.y, layout.field.s, layout.field.s);
+    ctx.rect(layout.field.x, layout.field.y, layout.field.w, layout.field.h);
     ctx.clip();
 
-    // ✅ HUD 글자도 더 큼
     ctx.fillStyle = "rgba(233,238,248,0.92)";
-    ctx.font = `700 ${clamp(sp(14), 13, 18)}px system-ui, -apple-system, "Noto Sans KR", "Noto Sans JP", sans-serif`;
+    ctx.font = `700 ${clamp(sp(14), 13, 20)}px system-ui, -apple-system, "Noto Sans KR", "Noto Sans JP", sans-serif`;
     ctx.textAlign = "left";
     ctx.textBaseline = "top";
 
     ctx.fillText(`점수: ${Math.floor(score)}`, layout.field.x + pad, layout.field.y + pad);
-    ctx.fillText(`목숨: ${"●".repeat(lives)}${"○".repeat(Math.max(0,3-lives))}`, layout.field.x + pad, layout.field.y + pad + sp(18));
-    ctx.fillText(`먹어야 하는 글자: ${correct}`, layout.field.x + pad, layout.field.y + pad + sp(36));
+    ctx.fillText(`목숨: ${"●".repeat(lives)}${"○".repeat(Math.max(0,3-lives))}`, layout.field.x + pad, layout.field.y + pad + sp(20));
 
     ctx.restore();
   }
@@ -501,13 +604,68 @@
     ctx.fill();
     ctx.strokeStyle = "rgba(233,238,248,0.24)";
     ctx.stroke();
+  }
 
-    if (W >= 360) {
-      ctx.fillStyle = COLOR_TEXT_DIM;
-      ctx.font = `600 ${clamp(sp(13), 12, 18)}px system-ui, -apple-system, "Noto Sans KR", "Noto Sans JP", sans-serif`;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "top";
-      ctx.fillText("하단 조이스틱으로 이동", W/2, yTop + sp(10));
+  function computeStartUIRects(){
+    const centerX = W/2;
+    const baseY = layout.field.y + layout.field.h * 0.60;
+
+    const bw = clamp(sp(190), 160, 260);
+    const bh = clamp(sp(56), 48, 70);
+    const bx = centerX - bw/2;
+    const by = baseY - bh/2;
+    ui.startBtn = { x: bx, y: by, w: bw, h: bh };
+
+    const hw = clamp(sp(150), 130, 210);
+    const hh = clamp(sp(44), 38, 58);
+    const hx = centerX - hw/2;
+    const hy = by + bh + sp(14);
+    ui.helpBtn = { x: hx, y: hy, w: hw, h: hh };
+
+    // help panel rect
+    const pw = Math.min(layout.field.w - sp(26), sp(560));
+    const ph = Math.min(layout.field.h * 0.55, sp(420));
+    const px = W/2 - pw/2;
+    const py = layout.field.y + layout.field.h*0.16;
+    ui.helpPanel = { x:px, y:py, w:pw, h:ph };
+  }
+
+  function renderHelpPanel(){
+    const p = ui.helpPanel;
+
+    ctx.fillStyle = "rgba(0,0,0,0.45)";
+    ctx.fillRect(0,0,W,H);
+
+    ctx.fillStyle = "rgba(255,255,255,0.06)";
+    ctx.strokeStyle = "rgba(233,238,248,0.18)";
+    ctx.lineWidth = 1;
+    roundRect(ctx, p.x, p.y, p.w, p.h, sp(16));
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = "rgba(233,238,248,0.92)";
+    ctx.font = `900 ${clamp(sp(16), 14, 22)}px system-ui, -apple-system, "Noto Sans KR", "Noto Sans JP", sans-serif`;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "top";
+    ctx.fillText("도움말", p.x + sp(14), p.y + sp(12));
+
+    ctx.fillStyle = COLOR_TEXT_DIM;
+    ctx.font = `650 ${clamp(sp(14), 13, 20)}px system-ui, -apple-system, "Noto Sans KR", "Noto Sans JP", sans-serif`;
+
+    const lines = [
+      "• 원 안 글자와 짝이 되는 글자만 먹기",
+      "• 틀리면 목숨 -1 (무적 깜빡임)",
+      "• 정답을 먹으면 주변 탄막이 잠시 사라짐",
+      "• ? 는 힌트 아이템: 먹으면 정답만 연두색 표시",
+      "   (정답을 먹거나 맞으면 효과 해제)",
+      "",
+      "닫기: 도움말 버튼 또는 패널 밖 탭"
+    ];
+
+    let y = p.y + sp(48);
+    for (const s of lines){
+      ctx.fillText(s, p.x + sp(14), y);
+      y += sp(22);
     }
   }
 
@@ -516,42 +674,42 @@
     ctx.fillRect(0,0,W,H);
 
     ctx.fillStyle = "rgba(255,255,255,0.01)";
-    ctx.fillRect(layout.field.x, layout.field.y, layout.field.s, layout.field.s);
+    ctx.fillRect(layout.field.x, layout.field.y, layout.field.w, layout.field.h);
     renderFieldFrame();
 
+    computeStartUIRects();
+
+    // Title
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-
     ctx.fillStyle = "rgba(233,238,248,0.95)";
-    ctx.font = `900 ${clamp(sp(30), 26, 40)}px system-ui, -apple-system, "Noto Sans KR", "Noto Sans JP", sans-serif`;
-    ctx.fillText("히라가나 특훈", W/2, layout.field.y + layout.field.s*0.30);
+    ctx.font = `900 ${clamp(sp(34), 28, 46)}px system-ui, -apple-system, "Noto Sans KR", "Noto Sans JP", sans-serif`;
+    ctx.fillText("히라가나 특훈", W/2, layout.field.y + layout.field.h*0.30);
 
-    ctx.font = `650 ${clamp(sp(15), 14, 20)}px system-ui, -apple-system, "Noto Sans KR", "Noto Sans JP", sans-serif`;
-    ctx.fillStyle = COLOR_TEXT_DIM;
-    const lines = [
-      "원 안 글자와 짝이 되는 글자만 먹기",
-      "틀리면 목숨 -1 (무적 + 짝 번갈아 표시)",
-      "피격 시 탄막이 사라졌다가 다시 진입",
-    ];
-    let y = layout.field.y + layout.field.s*0.44;
-    for (const s of lines){ ctx.fillText(s, W/2, y); y += sp(20); }
-
-    const bw = clamp(sp(170), 150, 220);
-    const bh = clamp(sp(50), 44, 60);
-    const bx = W/2 - bw/2;
-    const by = layout.field.y + layout.field.s*0.64 - bh/2;
-
+    // Start button
     ctx.fillStyle = "rgba(255,255,255,0.06)";
     ctx.strokeStyle = "rgba(233,238,248,0.18)";
     ctx.lineWidth = 1;
-    roundRect(ctx, bx, by, bw, bh, sp(16));
+    roundRect(ctx, ui.startBtn.x, ui.startBtn.y, ui.startBtn.w, ui.startBtn.h, sp(16));
     ctx.fill(); ctx.stroke();
 
     ctx.fillStyle = "rgba(233,238,248,0.92)";
-    ctx.font = `900 ${clamp(sp(20), 18, 26)}px system-ui, -apple-system, "Noto Sans KR", "Noto Sans JP", sans-serif`;
-    ctx.fillText("시작", W/2, layout.field.y + layout.field.s*0.64);
+    ctx.font = `900 ${clamp(sp(22), 18, 30)}px system-ui, -apple-system, "Noto Sans KR", "Noto Sans JP", sans-serif`;
+    ctx.fillText("시작", W/2, ui.startBtn.y + ui.startBtn.h/2);
+
+    // Help button (Request3)
+    ctx.fillStyle = "rgba(255,255,255,0.04)";
+    ctx.strokeStyle = "rgba(233,238,248,0.14)";
+    roundRect(ctx, ui.helpBtn.x, ui.helpBtn.y, ui.helpBtn.w, ui.helpBtn.h, sp(14));
+    ctx.fill(); ctx.stroke();
+
+    ctx.fillStyle = "rgba(233,238,248,0.88)";
+    ctx.font = `800 ${clamp(sp(18), 16, 26)}px system-ui, -apple-system, "Noto Sans KR", "Noto Sans JP", sans-serif`;
+    ctx.fillText(ui.helpOpen ? "도움말 닫기" : "도움말", W/2, ui.helpBtn.y + ui.helpBtn.h/2);
 
     renderJoystick();
+
+    if (ui.helpOpen) renderHelpPanel();
   }
 
   function renderOver(){
@@ -559,48 +717,44 @@
     ctx.fillRect(0,0,W,H);
 
     ctx.fillStyle = "rgba(255,255,255,0.01)";
-    ctx.fillRect(layout.field.x, layout.field.y, layout.field.s, layout.field.s);
+    ctx.fillRect(layout.field.x, layout.field.y, layout.field.w, layout.field.h);
     renderFieldFrame();
 
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-
     ctx.fillStyle = "rgba(233,238,248,0.95)";
-    ctx.font = `900 ${clamp(sp(30), 26, 40)}px system-ui, -apple-system, "Noto Sans KR", "Noto Sans JP", sans-serif`;
-    ctx.fillText("게임 오버", W/2, layout.field.y + layout.field.s*0.20);
+    ctx.font = `900 ${clamp(sp(34), 28, 46)}px system-ui, -apple-system, "Noto Sans KR", "Noto Sans JP", sans-serif`;
+    ctx.fillText("게임 오버", W/2, layout.field.y + layout.field.h*0.20);
 
-    ctx.font = `700 ${clamp(sp(16), 14, 22)}px system-ui, -apple-system, "Noto Sans KR", "Noto Sans JP", sans-serif`;
     ctx.fillStyle = COLOR_TEXT_DIM;
-    ctx.fillText(`최종 점수: ${Math.floor(score)}`, W/2, layout.field.y + layout.field.s*0.29);
+    ctx.font = `700 ${clamp(sp(18), 16, 26)}px system-ui, -apple-system, "Noto Sans KR", "Noto Sans JP", sans-serif`;
+    ctx.fillText(`최종 점수: ${Math.floor(score)}`, W/2, layout.field.y + layout.field.h*0.28);
 
-    // 틀린 목록 (상위 10개)
     const arr = Array.from(mistakes.values()).sort((a,b)=>b.count-a.count).slice(0, 10);
-
-    const boxW = Math.min(layout.field.s - sp(18), sp(560));
+    const boxW = Math.min(layout.field.w - sp(24), sp(620));
     const boxX = W/2 - boxW/2;
-    const boxY = layout.field.y + layout.field.s*0.36;
-    const rowH = clamp(sp(24), 22, 32);
-    const boxH = sp(44) + Math.max(1, arr.length) * rowH + sp(44);
+    const boxY = layout.field.y + layout.field.h*0.34;
+    const rowH = clamp(sp(26), 22, 34);
+    const boxH = sp(46) + Math.max(1, arr.length) * rowH + sp(48);
 
     ctx.fillStyle = "rgba(255,255,255,0.04)";
     ctx.strokeStyle = "rgba(233,238,248,0.14)";
-    ctx.lineWidth = 1;
     roundRect(ctx, boxX, boxY, boxW, boxH, sp(16));
     ctx.fill(); ctx.stroke();
 
     ctx.textAlign = "left";
     ctx.textBaseline = "top";
     ctx.fillStyle = "rgba(233,238,248,0.92)";
-    ctx.font = `800 ${clamp(sp(14), 13, 20)}px system-ui, -apple-system, "Noto Sans KR", "Noto Sans JP", sans-serif`;
+    ctx.font = `800 ${clamp(sp(16), 14, 22)}px system-ui, -apple-system, "Noto Sans KR", "Noto Sans JP", sans-serif`;
     ctx.fillText("틀린 목록 / 정답 (로마자 포함)", boxX + sp(14), boxY + sp(12));
 
-    ctx.font = `650 ${clamp(sp(13), 12, 18)}px system-ui, -apple-system, "Noto Sans KR", "Noto Sans JP", sans-serif`;
     ctx.fillStyle = COLOR_TEXT_DIM;
+    ctx.font = `650 ${clamp(sp(15), 13, 20)}px system-ui, -apple-system, "Noto Sans KR", "Noto Sans JP", sans-serif`;
 
     if (arr.length === 0) {
-      ctx.fillText("틀린 항목이 없습니다! 🎉", boxX + sp(14), boxY + sp(38));
+      ctx.fillText("틀린 항목이 없습니다! 🎉", boxX + sp(14), boxY + sp(42));
     } else {
-      let y = boxY + sp(38);
+      let y = boxY + sp(42);
       for (const it of arr) {
         const p = it.pair;
         ctx.fillText(`• ${p.hira} ↔ ${p.hangul} (${p.romaji}) ×${it.count}`, boxX + sp(14), y);
@@ -611,8 +765,8 @@
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillStyle = "rgba(233,238,248,0.9)";
-    ctx.font = `800 ${clamp(sp(16), 14, 22)}px system-ui, -apple-system, "Noto Sans KR", "Noto Sans JP", sans-serif`;
-    ctx.fillText("탭해서 재도전", W/2, boxY + boxH - sp(20));
+    ctx.font = `900 ${clamp(sp(18), 16, 26)}px system-ui, -apple-system, "Noto Sans KR", "Noto Sans JP", sans-serif`;
+    ctx.fillText("탭해서 재도전", W/2, boxY + boxH + sp(26));
 
     renderJoystick();
   }
@@ -622,12 +776,13 @@
     ctx.fillRect(0,0,W,H);
 
     ctx.fillStyle = "rgba(255,255,255,0.01)";
-    ctx.fillRect(layout.field.x, layout.field.y, layout.field.s, layout.field.s);
+    ctx.fillRect(layout.field.x, layout.field.y, layout.field.w, layout.field.h);
     renderFieldFrame();
 
+    // clip to field
     ctx.save();
     ctx.beginPath();
-    ctx.rect(layout.field.x, layout.field.y, layout.field.s, layout.field.s);
+    ctx.rect(layout.field.x, layout.field.y, layout.field.w, layout.field.h);
     ctx.clip();
 
     // aura
@@ -641,11 +796,20 @@
       ctx.stroke();
     }
 
-    // ✅ 탄막 글자 더 크게 (모바일 가독성 강화)
-    const bulletFont = clamp(sp(26), 22, 40);
+    const correctText = currentCorrectText();
+
+    // bullets (bigger for mobile/tablet)
+    const bulletFont = clamp(sp(30), 24, 46);
     for (const b of bullets) {
       const s = toScreen(b.x, b.y);
-      drawTextWithStroke(b.text, s.x, s.y, bulletFont, COLOR_TEXT, COLOR_STROKE, 2);
+
+      // Request6: highlight correct bullets green if active
+      const isCorrectNow = (!b.isHint && b.text === correctText);
+      let fill = COLOR_TEXT;
+      if (b.isHint) fill = "rgba(255,255,255,0.92)";
+      else if (highlightCorrect && isCorrectNow) fill = COLOR_HINT_GREEN;
+
+      drawTextWithStroke(b.text, s.x, s.y, bulletFont, fill, COLOR_STROKE, 2);
     }
 
     // player
@@ -662,8 +826,7 @@
     let pChar = player.char;
     if (player.invincible) pChar = player.blinkShowAlt ? player.blinkB : player.blinkA;
 
-    // ✅ 플레이어 글자도 더 크게
-    ctx.font = `900 ${clamp(Math.round(player.r*1.05), 18, 32)}px system-ui, -apple-system, "Noto Sans KR", "Noto Sans JP", sans-serif`;
+    ctx.font = `900 ${clamp(Math.round(player.r*1.10), 20, 36)}px system-ui, -apple-system, "Noto Sans KR", "Noto Sans JP", sans-serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillStyle = COLOR_PLAYER_TEXT;
@@ -701,17 +864,15 @@
     if (state === STATE.PLAY) {
       timeAlive += dt;
 
-      // ✅ 스피드 타이머는 "탄막이 실제로 들어오기 시작한 뒤"에만 증가시키고 싶음
-      // 요구: "4회 깜빡인 이후부터 탄막이 진입"
+      // Allow spawn only after blinkCount >= 4 (your earlier rule)
       const allowSpawn = !(player.invincible && player.blinkCount < 4);
 
       if (allowSpawn) speedTime += dt;
 
-      // 난이도: 스폰/최대탄막 (기존 유지)
-      spawnRate = Math.min(10.0, 1.6 + timeAlive * 0.08);
-      maxBullets = Math.min(420, 180 + Math.floor(timeAlive * 3.0));
+      // Request4: half density
+      spawnRate = Math.min(5.0, 0.8 + timeAlive * 0.04);
+      maxBullets = Math.min(220, 90 + Math.floor(timeAlive * 1.5));
 
-      // ✅ 깜빡임 4회 전에는 탄막 생성 완전 중지 + 화면도 비우기
       if (!allowSpawn) {
         if (bullets.length) bullets.length = 0;
         spawnAcc = 0;
@@ -720,16 +881,18 @@
         while (spawnAcc >= 1) { spawnAcc -= 1; spawnBullet(); }
       }
 
-      // 이동
-      const S = layout.field.s;
-      const len = Math.hypot(joy.dx, joy.dy);
-      const mag = clamp(len, 0, 1);
+      // move by joystick
+      const Fw = layout.field.w;
+      const Fh = layout.field.h;
+
+      const mag = clamp(Math.hypot(joy.dx, joy.dy), 0, 1);
       player.x += joy.dx * player.speed * mag * dt;
       player.y += joy.dy * player.speed * mag * dt;
-      player.x = clamp(player.x, player.r, S - player.r);
-      player.y = clamp(player.y, player.r, S - player.r);
 
-      // 무적 깜빡임 업데이트
+      player.x = clamp(player.x, player.r, Fw - player.r);
+      player.y = clamp(player.y, player.r, Fh - player.r);
+
+      // invincible blink
       if (player.invincible) {
         player.blinkT += dt;
         const toggles = Math.floor(player.blinkT / player.blinkInterval);
@@ -745,28 +908,38 @@
 
       if (auraT > 0) auraT = Math.max(0, auraT - dt);
 
-      // 충돌
+      // bullets update + collision
       const correctText = currentCorrectText();
       for (let i = bullets.length - 1; i >= 0; i--) {
         const b = bullets[i];
+        if (!b) continue;
+
         b.x += b.vx * dt;
         b.y += b.vy * dt;
 
-        if (b.x < -80 || b.x > S+80 || b.y < -80 || b.y > S+80) {
+        // despawn far outside
+        if (b.x < -80 || b.x > Fw+80 || b.y < -80 || b.y > Fh+80) {
           bullets.splice(i,1);
           continue;
         }
 
         const d = Math.hypot(b.x - player.x, b.y - player.y);
         if (d <= b.r + player.r) {
-          const isCorrect = (b.text === correctText);
+          // consume
           bullets.splice(i,1);
 
+          if (b.isHint) {
+            // Request6: enable highlight, reset on correct-eat or hit/death
+            highlightCorrect = true;
+            continue;
+          }
+
+          const isCorrect = (b.text === correctText);
           if (isCorrect) {
-             onEatCorrect(b.pair);
+            onEatCorrect(b.pair);
           } else if (!player.invincible) {
-             onHitWrong(b.pair);
-             break; // ★중요: onHitWrong에서 bullets를 비우므로 루프 종료
+            onHitWrong(b.pair);
+            break; // 중요: onHitWrong에서 bullets를 비우므로 루프 종료
           }
         }
       }
