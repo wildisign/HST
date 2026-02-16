@@ -458,7 +458,7 @@
     } else {
       // ✅ 정답 빈도
       const correctPair = getPlayerPair();
-      const correctChance = 0.2;
+      const correctChance = 0.22;
 
       if (Math.random() < correctChance) {
         pair = correctPair;
@@ -910,7 +910,9 @@
       }
 
       if (auraT > 0) auraT = Math.max(0, auraT - dt);
-
+      if (auraT > 0) {
+        clearBulletsNearPlayer();
+      }
       // bullets update + collision
       const correctText = currentCorrectText();
       for (let i = bullets.length - 1; i >= 0; i--) {
