@@ -1,804 +1,786 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>끌리메 가격 퀴즈</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #ffeaa7 0%, #fab1a0 50%, #fd79a8 100%);
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
-        }
-
-        .container {
-            background: white;
-            border-radius: 25px;
-            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
-            width: 100%;
-            max-width: 450px;
-            min-height: 450px;
-            max-height: 95vh;
-            overflow: hidden;
-            position: relative;
-        }
-
-        .close-btn {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            background: #ff7675;
-            color: white;
-            border: none;
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            font-size: 1.2em;
-            cursor: pointer;
-            display: none;
-            z-index: 100;
-            transition: all 0.3s ease;
-        }
-
-        .close-btn:hover {
-            background: #d63031;
-            transform: scale(1.1);
-        }
-
-        .close-btn.visible {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .back-btn {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            background: #74b9ff;
-            color: white;
-            border: none;
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            font-size: 1.4em;
-            cursor: pointer;
-            display: none;
-            z-index: 100;
-            transition: all 0.3s ease;
-        }
-
-        .back-btn:hover {
-            background: #0984e3;
-            transform: scale(1.1);
-        }
-
-        .back-btn.visible {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .screen {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            padding: 20px;
-            text-align: center;
-            display: none;
-            flex-direction: column;
-            justify-content: center;
-            opacity: 0;
-            transition: opacity 0.5s ease;
-        }
-
-        .screen.active {
-            display: flex;
-            opacity: 1;
-        }
-
-        .logo {
-            font-size: 2.5em;
-            margin-bottom: 10px;
-            background: linear-gradient(135deg, #fd79a8, #fdcb6e);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        h1 {
-            color: #2d3436;
-            margin-bottom: 8px;
-            font-size: 1.6em;
-            font-weight: 700;
-        }
-
-        h2 {
-            color: #636e72;
-            margin-bottom: 15px;
-            font-size: 0.9em;
-            font-weight: 400;
-        }
-
-        .quiz-type-buttons {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            margin-bottom: 15px;
-        }
-
-        .btn {
-            background: linear-gradient(135deg, #fd79a8 0%, #fdcb6e 100%);
-            color: white;
-            border: none;
-            padding: 15px 30px;
-            border-radius: 50px;
-            font-size: 1.1em;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 8px 20px rgba(253, 121, 168, 0.3);
-        }
-
-        .btn:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 12px 25px rgba(253, 121, 168, 0.4);
-        }
-
-        .btn:active {
-            transform: translateY(-1px);
-        }
-
-        .btn-secondary {
-            background: linear-gradient(135deg, #a29bfe 0%, #6c5ce7 100%);
-            box-shadow: 0 8px 20px rgba(162, 155, 254, 0.3);
-        }
-
-        .btn-secondary:hover {
-            box-shadow: 0 12px 25px rgba(162, 155, 254, 0.4);
-        }
-
-        .question-card {
-            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-            border-radius: 20px;
-            padding: 25px;
-            margin-bottom: 30px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-            border: 3px solid #fd79a8;
-        }
-
-        .question-title {
-            color: #fd79a8;
-            font-weight: bold;
-            margin-bottom: 20px;
-            font-size: 1.1em;
-        }
-
-        .question-text {
-            font-size: 1.4em;
-            color: #2d3436;
-            line-height: 1.6;
-            font-weight: 600;
-        }
-
-        .answer-card {
-            background: linear-gradient(135deg, #00b894 0%, #00cec9 100%);
-            border-radius: 20px;
-            padding: 25px;
-            margin-bottom: 30px;
-            box-shadow: 0 10px 30px rgba(0, 184, 148, 0.3);
-            color: white;
-        }
-
-        .answer-title {
-            font-weight: bold;
-            margin-bottom: 20px;
-            font-size: 1.1em;
-            opacity: 0.9;
-        }
-
-        .answer-price {
-            font-size: 3em;
-            font-weight: 700;
-            margin-bottom: 10px;
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-        }
-
-        .completion-card {
-            background: linear-gradient(135deg, #ffebde, #ffebbe);
-            border-radius: 20px;
-            padding: 40px 25px;
-            margin-bottom: 30px;
-            box-shadow: 0 15px 40px rgba(255, 234, 167, 0.5);
-            color: #2d3436;
-            text-align: center;
-        }
-
-        .completion-card .logo {
-            background: linear-gradient(135deg, #fd79a8, #fdcb6e);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            margin-bottom: 20px;
-        }
-
-        .completion-card h1 {
-            color: #2d3436;
-            margin-bottom: 30px;
-            font-size: 1.8em;
-            font-weight: 700;
-        }
-
-        .controls {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-
-        .controls-row {
-            display: flex;
-            gap: 15px;
-            justify-content: center;
-        }
-
-        .btn-small {
-            padding: 12px 25px;
-            font-size: 1em;
-            min-width: 120px;
-        }
-
-        .quiz-info {
-            background: rgba(255, 255, 255, 0.8);
-            border-radius: 15px;
-            padding: 12px;
-            margin-bottom: 12px;
-            color: #636e72;
-            font-size: 0.8em;
-        }
-
-        .info-row {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 8px;
-        }
-
-        .info-row:last-child {
-            margin-bottom: 0;
-        }
-
-        /* 순서 선택 토글 버튼 스타일 */
-        .order-toggle {
-            display: flex;
-            gap: 8px;
-            justify-content: center;
-            margin-top: 8px;
-            margin-bottom: 10px;
-        }
-
-        .toggle-btn {
-            background: #ddd;
-            color: #636e72;
-            border: none;
-            padding: 6px 14px;
-            border-radius: 20px;
-            font-size: 0.75em;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            min-width: 55px;
-        }
-
-        .toggle-btn.active {
-            background: linear-gradient(135deg, #fd79a8 0%, #fdcb6e 100%);
-            color: white;
-            box-shadow: 0 4px 12px rgba(253, 121, 168, 0.4);
-        }
-
-        .toggle-btn:hover:not(.active) {
-            background: #bbb;
-            transform: translateY(-1px);
-        }
-
-        @media (max-width: 480px) {
-            body {
-                padding: 10px;
-            }
-            
-            .container {
-                height: auto;
-                max-height: 98vh;
-                border-radius: 20px;
-            }
-            
-            .screen {
-                padding: 15px;
-            }
-            
-            .logo {
-                font-size: 2.5em;
-            }
-            
-            h1 {
-                font-size: 1.5em;
-            }
-            
-            .question-text {
-                font-size: 1.1em;
-            }
-            
-            .answer-price {
-                font-size: 2em;
-            }
-            
-            .btn {
-                padding: 12px 25px;
-                font-size: 1em;
-            }
-            
-            .controls-row {
-                flex-direction: column;
-            }
-
-            .order-toggle {
-                flex-direction: column;
-                gap: 8px;
-            }
-
-            .toggle-btn {
-                padding: 10px 16px;
-            }
-
-            .completion-card h1 {
-                font-size: 1.5em;
-            }
-        }
-
-        .fade-in {
-            animation: fadeIn 0.5s ease;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-    </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <title>히라가나 특훈</title>
+  <style>
+    html, body { margin:0; height:100%; background:#0b0f16; overflow:hidden; }
+    canvas { display:block; width:100vw; height:100vh; touch-action:none; }
+    body { user-select:none; -webkit-user-select:none; }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <button class="close-btn" onclick="goHome()">×</button>
-        <button class="back-btn" onclick="goBackToQuestion()">‹</button>
+<canvas id="c"></canvas>
+<script>
+(() => {
+  // ---------------------------
+  // 1) DATA
+  // ---------------------------
+  const PAIRS = [
+    { hira: "あ", hangul: "아", romaji: "a" },
+    { hira: "い", hangul: "이", romaji: "i" },
+    { hira: "う", hangul: "우", romaji: "u" },
+    { hira: "え", hangul: "에", romaji: "e" },
+    { hira: "お", hangul: "오", romaji: "o" },
 
-        <!-- 메인 화면 -->
-        <div class="screen active" id="home-screen">
-            <div class="logo">💅</div>
-            <h1>끌리메 가격 퀴즈</h1>
-            <h2>끌리메의 시술과 제품 가격을 맞춰보세요!</h2>
-            
-            <div class="quiz-type-buttons">
-                <button class="btn" onclick="startQuiz('시술')">
-                    🏥 시술 가격 퀴즈
-                </button>
-                <button class="btn btn-secondary" onclick="startQuiz('제품')">
-                    🧴 제품 가격 퀴즈
-                </button>
-            </div>
-            
-            <div class="quiz-info">
-                <div class="info-row">
-                    <span>시술 문제</span>
-                    <span><strong>62개</strong></span>
-                </div>
-                <div class="info-row">
-                    <span>제품 문제</span>
-                    <span><strong>11개</strong></span>
-                </div>
-                <div class="info-row">
-                    <span>문제 순서</span>
-                    <span><strong id="order-display">기본</strong></span>
-                </div>
-            </div>
+    { hira: "か", hangul: "카", romaji: "ka" },
+    { hira: "き", hangul: "키", romaji: "ki" },
+    { hira: "く", hangul: "쿠", romaji: "ku" },
+    { hira: "け", hangul: "케", romaji: "ke" },
+    { hira: "こ", hangul: "코", romaji: "ko" },
 
-            <!-- 순서 선택 토글 -->
-            <div class="order-toggle">
-                <button class="toggle-btn active" onclick="toggleOrder('기본')" id="order-basic">
-                    📝 기본
-                </button>
-                <button class="toggle-btn" onclick="toggleOrder('랜덤')" id="order-random">
-                    🔀 랜덤
-                </button>
-            </div>
-        </div>
+    { hira: "さ", hangul: "사", romaji: "sa" },
+    { hira: "し", hangul: "시", romaji: "shi" },
+    { hira: "す", hangul: "스", romaji: "su" },
+    { hira: "せ", hangul: "세", romaji: "se" },
+    { hira: "そ", hangul: "소", romaji: "so" },
 
-        <!-- 질문 화면 -->
-        <div class="screen" id="question-screen">
-            <div class="question-card">
-                <div class="question-title" id="question-category">시술 가격 퀴즈</div>
-                <div class="question-text" id="question-text">
-                    질문이 여기에 표시됩니다.
-                </div>
-            </div>
+    { hira: "た", hangul: "타", romaji: "ta" },
+    { hira: "ち", hangul: "치", romaji: "chi" },
+    { hira: "つ", hangul: "츠", romaji: "tsu" },
+    { hira: "て", hangul: "테", romaji: "te" },
+    { hira: "と", hangul: "토", romaji: "to" },
 
-            <div class="controls">
-                <button class="btn" onclick="showAnswer()">
-                    💡 정답 확인
-                </button>
-                <div class="controls-row">
-                    <button class="btn btn-small btn-secondary" onclick="nextQuestion()">
-                        ⏭️ 다음 문제
-                    </button>
-                </div>
-            </div>
-        </div>
+    { hira: "な", hangul: "나", romaji: "na" },
+    { hira: "に", hangul: "니", romaji: "ni" },
+    { hira: "ぬ", hangul: "누", romaji: "nu" },
+    { hira: "ね", hangul: "네", romaji: "ne" },
+    { hira: "の", hangul: "노", romaji: "no" },
 
-        <!-- 답안 화면 -->
-        <div class="screen" id="answer-screen">
-            <div class="answer-card">
-                <div class="answer-title">정답</div>
-                <div class="answer-price" id="answer-price">
-                    000,000원
-                </div>
-            </div>
+    { hira: "は", hangul: "하", romaji: "ha" },
+    { hira: "ひ", hangul: "히", romaji: "hi" },
+    { hira: "ふ", hangul: "후", romaji: "fu" },
+    { hira: "へ", hangul: "헤", romaji: "he" },
+    { hira: "ほ", hangul: "호", romaji: "ho" },
 
-            <div class="controls">
-                <button class="btn" onclick="nextQuestion()">
-                    ⏭️ 다음 문제
-                </button>
-            </div>
-        </div>
+    { hira: "ま", hangul: "마", romaji: "ma" },
+    { hira: "み", hangul: "미", romaji: "mi" },
+    { hira: "む", hangul: "무", romaji: "mu" },
+    { hira: "め", hangul: "메", romaji: "me" },
+    { hira: "も", hangul: "모", romaji: "mo" },
 
-        <!-- 완료 화면 -->
-        <div class="screen" id="completion-screen">
-            <div class="completion-card">
-                <div class="logo">🎉</div>
-                <h1>모든 문제를 풀었어요!</h1>
-                <div class="controls">
-                    <button class="btn" onclick="goHome()">
-                        🏠 메인으로
-                    </button>
-                    <button class="btn btn-secondary" onclick="restartQuiz()">
-                        🔄 다시 풀기
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
+    { hira: "や", hangul: "야", romaji: "ya" },
+    { hira: "ゆ", hangul: "유", romaji: "yu" },
+    { hira: "よ", hangul: "요", romaji: "yo" },
 
-    <script>
-        // 퀴즈 데이터 (CSV에서 변환된 JSON 데이터)
-        const quizData = {
-            시술: [
-                {"문제":"끌링 작은얼굴 1회 가격은?","정답":110000},
-                {"문제":"끌링 작은얼굴 10회 가격은?","정답":1020000},
-                {"문제":"끌링 작은얼굴 20회 가격은?","정답":1980000},
-                {"문제":"끌링 작은얼굴 30회 가격은?","정답":2475000},
-                {"문제":"골드 페이스라인 1회 가격은?","정답":110000},
-                {"문제":"골드 페이스라인 10회 가격은?","정답":1020000},
-                {"문제":"골드 페이스라인 20회 가격은?","정답":1980000},
-                {"문제":"골드 페이스라인 30회 가격은?","정답":2475000},
-                {"문제":"작은얼굴 1회 가격은?","정답":140000},
-                {"문제":"작은얼굴 10회 가격은?","정답":1250000},
-                {"문제":"작은얼굴 20회 가격은?","정답":2360000},
-                {"문제":"작은얼굴 30회 가격은?","정답":2850000},
-                {"문제":"골드 페이스 바디라인 1회 가격은?","정답":150000},
-                {"문제":"골드 페이스 바디라인 10회 가격은?","정답":1280000},
-                {"문제":"골드 페이스 바디라인 20회 가격은?","정답":2350000},
-                {"문제":"골드 페이스 바디라인 30회 가격은?","정답":2880000},
-                {"문제":"뉴작은얼굴 1회 가격은?","정답":160000},
-                {"문제":"뉴작은얼굴 10회 가격은?","정답":1300000},
-                {"문제":"뉴작은얼굴 20회 가격은?","정답":2400000},
-                {"문제":"뉴작은얼굴 30회 가격은?","정답":2910000},
-                {"문제":"이목구비 1회 가격은?","정답":170000},
-                {"문제":"이목구비 10회 가격은?","정답":1490000},
-                {"문제":"이목구비 20회 가격은?","정답":2650000},
-                {"문제":"이목구비 30회 가격은?","정답":2940000},
-                {"문제":"끌링 이목구비 1회 가격은?","정답":170000},
-                {"문제":"끌링 이목구비 10회 가격은?","정답":1490000},
-                {"문제":"끌링 이목구비 20회 가격은?","정답":2650000},
-                {"문제":"끌링 이목구비 30회 가격은?","정답":2940000},
-                {"문제":"페이스 트레이닝 1회 가격은?","정답":150000},
-                {"문제":"페이스 트레이닝 10회 가격은?","정답":1280000},
-                {"문제":"페이스 트레이닝 20회 가격은?","정답":2350000},
-                {"문제":"페이스 트레이닝 30회 가격은?","정답":2880000},
-                {"문제":"크레이지 대칭 1회 가격은?","정답":200000},
-                {"문제":"더마리젠 리턴 솔루션 1회 가격은?","정답":200000},
-                {"문제":"더마리젠 리턴 솔루션 10회 가격은?","정답":1800000},
-                {"문제":"스피큘루션 Q 1회 가격은?","정답":250000},
-                {"문제":"스피큘루션 Q 6회 가격은?","정답":1350000},
-                {"문제":"DMTS 1회 가격은?","정답":180000},
-                {"문제":"페이스라인 리프팅 1회 가격은?","정답":300000},
-                {"문제":"바스트 상체라인 1회 가격은?","정답":230000},
-                {"문제":"바스트 상체라인 10회 가격은?","정답":1900000},
-                {"문제":"바스트 상체라인 20회 가격은?","정답":3300000},
-                {"문제":"바스트 상체라인 30회 가격은?","정답":4200000},
-                {"문제":"셀룰로우 전신 1회 가격은?","정답":200000},
-                {"문제":"셀룰로우 전신 20회 가격은?","정답":2900000},
-                {"문제":"셀룰로우 상체 1회 가격은?","정답":150000},
-                {"문제":"셀룰로우 상체 20회 가격은?","정답":2200000},
-                {"문제":"셀룰로우 하체 1회 가격은?","정답":150000},
-                {"문제":"셀룰로우 하체 20회 가격은?","정답":2200000},
-                {"문제":"골드 상체라인(Back) 1회 가격은?","정답":110000},
-                {"문제":"골드 상체라인(Back) 10회 가격은?","정답":1000000},
-                {"문제":"골드 상체라인(Back) 20회 가격은?","정답":1800000},
-                {"문제":"골드 상체라인(Back) 30회 가격은?","정답":2250000},
-                {"문제":"골드 하체라인(Back) 1회 가격은?","정답":110000},
-                {"문제":"골드 하체라인(Back) 10회 가격은?","정답":1000000},
-                {"문제":"골드 하체라인(Back) 20회 가격은?","정답":1800000},
-                {"문제":"골드 하체라인(Back) 30회 가격은?","정답":2250000},
-                {"문제":"애플힙 1회 가격은?","정답":100000},
-                {"문제":"애플힙 10회 가격은?","정답":700000},
-                {"문제":"부분관리(목&어깨/종아리) 1회 가격은?","정답":60000},
-                {"문제":"부분관리(목&어깨/종아리) 10회 가격은?","정답":600000},
-                {"문제":"부분관리(목&어깨/종아리) 20회 가격은?","정답":1200000},
-            ],
-            제품: [
-                {"문제":"모이스처 페어리 토너 480ml 가격은?","정답":132000},
-                {"문제":"모이스처 페어리 크림 100ml 가격은?","정답":156000},
-                {"문제":"모이스처 페어리 앰플 30ml 가격은?","정답":150000},
-                {"문제":"모이스처 페어리 앰플 100ml 가격은?","정답":320000},
-                {"문제":"DMTS 바이오 미스트 80ml 가격은?","정답":48000},
-                {"문제":"DMTS 바이오 세럼 30ml 가격은?","정답":84000},
-                {"문제":"DMTS 바이오 크림 35ml 가격은?","정답":72000},
-                {"문제":"카밍 피토겔 150ml 가격은?","정답":63000},
-                {"문제":"카밍 피토겔 480ml 가격은?","정답":132000},
-                {"문제":"퍼펙트 클렌징 겔 200ml 가격은?","정답":36000},
-                {"문제":"선블록 에센스/비비 50ml 가격은?","정답":58000}
-            ]
-        };
+    { hira: "ら", hangul: "라", romaji: "ra" },
+    { hira: "り", hangul: "리", romaji: "ri" },
+    { hira: "る", hangul: "루", romaji: "ru" },
+    { hira: "れ", hangul: "레", romaji: "re" },
+    { hira: "ろ", hangul: "로", romaji: "ro" },
 
-        // 퀴즈 앱 클래스
-        class ClimeQuizApp {
-            constructor() {
-                this.currentQuizType = null;
-                this.currentQuestions = [];
-                this.currentIndex = 0;
-                this.showingAnswer = false;
-                this.orderType = '기본'; // 기본값은 '기본' 순서
-                this.questionsAnswered = 0; // 푼 문제 개수 추적
-            }
+    { hira: "わ", hangul: "와", romaji: "wa" },
+    { hira: "ん", hangul: "응", romaji: "n" },
+  ];
 
-            init() {
-                this.showScreen('home-screen');
-                this.hideCloseBtn();
-                this.hideBackBtn();
-                this.updateOrderDisplay();
-            }
+  const hiraToPair = new Map(PAIRS.map(p => [p.hira, p]));
+  const hangulToPair = new Map(PAIRS.map(p => [p.hangul, p]));
 
-            showScreen(screenId) {
-                // 모든 스크린 숨기기
-                document.querySelectorAll('.screen').forEach(screen => {
-                    screen.classList.remove('active');
-                });
-                
-                // 선택된 스크린 보이기
-                setTimeout(() => {
-                    document.getElementById(screenId).classList.add('active');
-                    document.getElementById(screenId).classList.add('fade-in');
-                }, 100);
+  function randInt(n){ return (Math.random()*n)|0; }
+  function choice(arr){ return arr[randInt(arr.length)]; }
+  function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
 
-                // 버튼 표시 상태 관리
-                if (screenId === 'home-screen' || screenId === 'completion-screen') {
-                    this.hideCloseBtn();
-                    this.hideBackBtn();
-                } else if (screenId === 'question-screen') {
-                    this.showCloseBtn();
-                    this.hideBackBtn();
-                } else if (screenId === 'answer-screen') {
-                    this.showCloseBtn();
-                    this.showBackBtn();
-                }
-            }
+  // ---------------------------
+  // 2) CANVAS
+  // ---------------------------
+  const canvas = document.getElementById("c");
+  const ctx = canvas.getContext("2d", { alpha:false });
 
-            showCloseBtn() {
-                document.querySelector('.close-btn').classList.add('visible');
-            }
+  let W = 0, H = 0;
 
-            hideCloseBtn() {
-                document.querySelector('.close-btn').classList.remove('visible');
-            }
+  const layout = {
+    pad: 14,
+    controlH: 170,
+    field: { x:0, y:0, s:0 },
+  };
 
-            showBackBtn() {
-                document.querySelector('.back-btn').classList.add('visible');
-            }
+  // ---------------------------
+  // 3) THEME
+  // ---------------------------
+  const COLOR_BG = "#0b0f16";
+  const COLOR_TEXT = "#e9eef8";
+  const COLOR_TEXT_DIM = "rgba(233,238,248,0.75)";
+  const COLOR_STROKE = "rgba(5,8,12,0.85)";
+  const COLOR_PLAYER_FILL = "#f1f6ff";
+  const COLOR_PLAYER_TEXT = "#141a24";
 
-            hideBackBtn() {
-                document.querySelector('.back-btn').classList.remove('visible');
-            }
+  // ---------------------------
+  // 4) STATE
+  // ---------------------------
+  const STATE = { START: "start", PLAY: "play", OVER: "over" };
+  let state = STATE.START;
 
-            // 순서 토글 함수
-            toggleOrder(orderType) {
-                this.orderType = orderType;
-                this.updateOrderDisplay();
-                this.updateOrderButtons();
-            }
+  function toScreen(wx, wy){
+    return { x: layout.field.x + wx, y: layout.field.y + wy };
+  }
 
-            // 순서 표시 업데이트
-            updateOrderDisplay() {
-                document.getElementById('order-display').textContent = this.orderType;
-            }
+  const player = {
+    x: 0, y: 0,
+    r: 18,
+    speed: 210,
+    char: "아",
 
-            // 순서 버튼 상태 업데이트
-            updateOrderButtons() {
-                document.querySelectorAll('.toggle-btn').forEach(btn => {
-                    btn.classList.remove('active');
-                });
-                
-                if (this.orderType === '기본') {
-                    document.getElementById('order-basic').classList.add('active');
-                } else {
-                    document.getElementById('order-random').classList.add('active');
-                }
-            }
+    invincible: false,
+    blinkT: 0,
+    blinkTotal: 0,
+    blinkCount: 0,      // number of toggles elapsed
+    blinkMax: 10,       // ✅ 10회 (히라5/한글5)
+    blinkInterval: 0.198, // ✅ 0.18에서 10% 느리게
+    blinkShowAlt: false,
+    blinkA: "아",
+    blinkB: "あ",
+  };
 
-            // Fisher-Yates 셔플 알고리즘
-            shuffleArray(array) {
-                const shuffled = [...array];
-                for (let i = shuffled.length - 1; i > 0; i--) {
-                    const j = Math.floor(Math.random() * (i + 1));
-                    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-                }
-                return shuffled;
-            }
+  const joy = {
+    active: false,
+    pointerId: null,
+    baseX: 0, baseY: 0,
+    knobX: 0, knobY: 0,
+    baseR: 54,
+    knobR: 22,
+    dx: 0, dy: 0,
+    area: { x:0, y:0, w:0, h:0 }
+  };
 
-            // 가격 포맷팅 (천 단위 콤마 + 원)
-            formatPrice(price) {
-                return price.toLocaleString('ko-KR') + '원';
-            }
+  // ✅ 모바일 글자 크기 키우기: 기준을 360이 아니라 320으로 잡고,
+  // 스케일 상한도 조금 올림
+  function sp(px){
+    const s = layout.field.s || 360;
+    const k = clamp(s / 320, 0.95, 1.70); // 폰에서 좀 더 큼, 태블릿도 충분히 커짐
+    return Math.round(px * k);
+  }
 
-            startQuiz(quizType) {
-                this.currentQuizType = quizType;
-                
-                // 선택된 순서에 따라 문제 배열 설정
-                if (this.orderType === '랜덤') {
-                    this.currentQuestions = this.shuffleArray(quizData[quizType]);
-                } else {
-                    // 기본 순서 (원본 배열 복사)
-                    this.currentQuestions = [...quizData[quizType]];
-                }
-                
-                this.currentIndex = 0;
-                this.questionsAnswered = 0;
-                this.showingAnswer = false;
-                
-                this.displayQuestion();
-                this.showScreen('question-screen');
-            }
+  let lives = 3;
+  let score = 0;
 
-            displayQuestion() {
-                const question = this.currentQuestions[this.currentIndex];
-                
-                document.getElementById('question-category').textContent = 
-                    this.currentQuizType === '시술' ? '🏥 시술 가격 퀴즈' : '🧴 제품 가격 퀴즈';
-                document.getElementById('question-text').textContent = question.문제;
-                
-                this.showingAnswer = false;
-            }
+  // 난이도 타이머
+  let timeAlive = 0;      // 스폰/최대탄막용(그대로)
+  let speedTime = 0;      // ✅ 탄막 속도 증가용(피격 후 리셋)
 
-            showAnswer() {
-                const question = this.currentQuestions[this.currentIndex];
-                const formattedPrice = this.formatPrice(question.정답);
-                
-                document.getElementById('answer-price').textContent = formattedPrice;
-                
-                this.showingAnswer = true;
-                this.showScreen('answer-screen');
-            }
+  const bullets = [];
+  let spawnAcc = 0;
+  let spawnRate = 1.6;
+  let maxBullets = 180;
 
-            goBackToQuestion() {
-                this.showScreen('question-screen');
-            }
+  let auraT = 0;
+  const auraDuration = 0.6;
+  let auraRadius = 110;
 
-            nextQuestion() {
-                // 문제를 푼 것으로 카운트 (답안을 확인했을 때만)
-                if (this.showingAnswer) {
-                    this.questionsAnswered++;
-                }
+  const mistakes = new Map();
 
-                // 모든 문제를 다 풀었는지 확인
-                if (this.questionsAnswered >= this.currentQuestions.length) {
-                    this.showScreen('completion-screen');
-                    return;
-                }
+  function isPlayerHangul() { return hangulToPair.has(player.char); }
+  function getPlayerPair() { return isPlayerHangul() ? hangulToPair.get(player.char) : hiraToPair.get(player.char); }
 
-                // 다음 문제로 이동
-                this.currentIndex = (this.currentIndex + 1) % this.currentQuestions.length;
-                
-                // 질문 화면으로 이동
-                this.displayQuestion();
-                this.showScreen('question-screen');
-            }
+  function setRandomPlayerChar(avoidChar=null) {
+    const p = choice(PAIRS);
+    const pickHangul = Math.random() < 0.5;
+    const next = pickHangul ? p.hangul : p.hira;
+    player.char = (next === avoidChar) ? (pickHangul ? p.hira : p.hangul) : next;
+  }
 
-            restartQuiz() {
-                this.startQuiz(this.currentQuizType);
-            }
+  function currentCorrectText() {
+    const pp = getPlayerPair();
+    return isPlayerHangul() ? pp.hira : pp.hangul;
+  }
 
-            goHome() {
-                this.showScreen('home-screen');
-            }
+  function addMistake(pair) {
+    const key = pair.hira + "|" + pair.hangul;
+    const cur = mistakes.get(key);
+    if (cur) cur.count += 1;
+    else mistakes.set(key, { pair, count: 1 });
+  }
+
+  function clearAllBullets() {
+    bullets.length = 0;
+    spawnAcc = 0;
+  }
+
+  function clearBulletsNearPlayer() {
+    for (let i = bullets.length - 1; i >= 0; i--) {
+      const b = bullets[i];
+      const d = Math.hypot(b.x - player.x, b.y - player.y);
+      if (d <= auraRadius) bullets.splice(i, 1);
+    }
+  }
+
+  function onEatCorrect(pair) {
+    score += 120;
+    auraT = auraDuration;
+    clearBulletsNearPlayer();
+    setRandomPlayerChar(player.char);
+  }
+
+  function startInvincibleBlink() {
+    const pp = getPlayerPair();
+    player.blinkA = pp.hangul;
+    player.blinkB = pp.hira;
+
+    player.invincible = true;
+    player.blinkT = 0;
+    player.blinkCount = 0;
+    player.blinkShowAlt = false;
+    player.blinkTotal = player.blinkMax * player.blinkInterval;
+  }
+
+  function onHitWrong(pairWrong) {
+    lives -= 1;
+    addMistake(pairWrong);
+    score = Math.max(0, score - 80);
+
+    // ✅ 피격 순간: 전체 탄막 제거
+    clearAllBullets();
+
+    if (lives <= 0) {
+      state = STATE.OVER;
+      return;
+    }
+
+    // ✅ 속도 타이머 리셋 (탄막 재진입 시 "초기 속도"로 시작하게)
+    speedTime = 0;
+
+    startInvincibleBlink();
+  }
+
+  // ---------------------------
+  // 5) LAYOUT / RESIZE
+  // ---------------------------
+  function updateJoystickLayout(){
+    const yTop = layout.field.y + layout.field.s + layout.pad;
+    const areaH = H - yTop;
+
+    joy.baseR = clamp(sp(56), 46, 74);
+    joy.knobR = clamp(Math.round(joy.baseR * 0.42), 18, 32);
+
+    joy.area.x = 0;
+    joy.area.y = yTop;
+    joy.area.w = W;
+    joy.area.h = areaH;
+
+    // 조이스틱 위치 규칙(이전 요구 유지)
+    const PHONE_W = 420;
+    const centerX = W / 2;
+    const lockFromRight = PHONE_W / 2; // 210
+    const lockedX = W - lockFromRight;
+
+    let targetX = (W <= PHONE_W) ? centerX : lockedX;
+
+    const minX = layout.pad + joy.baseR;
+    const maxX = W - layout.pad - joy.baseR;
+    targetX = clamp(targetX, minX, maxX);
+
+    joy.baseX = targetX;
+    joy.baseY = yTop + areaH/2;
+
+    if (!joy.active) {
+      joy.knobX = joy.baseX;
+      joy.knobY = joy.baseY;
+    }
+
+    player.r = clamp(sp(22), 18, 30);
+    player.speed = clamp(layout.field.s * 0.58, 190, 340);
+    auraRadius = clamp(layout.field.s * 0.30, 100, 190);
+  }
+
+  function resize() {
+    const vw = (window.visualViewport?.width ?? innerWidth);
+    const vh = (window.visualViewport?.height ?? innerHeight);
+
+    W = Math.floor(vw);
+    H = Math.floor(vh);
+
+    const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+    canvas.width = Math.floor(W * dpr);
+    canvas.height = Math.floor(H * dpr);
+    canvas.style.width = W + "px";
+    canvas.style.height = H + "px";
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+
+    layout.controlH = clamp(Math.round(H * 0.26), 160, 260);
+
+    const usableH = H - layout.controlH - layout.pad*2;
+    const usableW = W - layout.pad*2;
+    const s = Math.max(260, Math.min(usableW, usableH)); // 조금 더 큰 최소값
+    layout.field.s = s;
+    layout.field.x = Math.floor((W - s) / 2);
+    layout.field.y = layout.pad;
+
+    updateJoystickLayout();
+  }
+
+  addEventListener("resize", resize);
+  if (window.visualViewport) window.visualViewport.addEventListener("resize", resize);
+  resize();
+
+  // ---------------------------
+  // 6) INPUT
+  // ---------------------------
+  function resetJoystick(){
+    joy.active = false;
+    joy.pointerId = null;
+    joy.dx = 0; joy.dy = 0;
+    joy.knobX = joy.baseX;
+    joy.knobY = joy.baseY;
+  }
+
+  function setJoystickFromPointer(sx, sy){
+    const dx = sx - joy.baseX;
+    const dy = sy - joy.baseY;
+    const dist = Math.hypot(dx,dy) || 1;
+    const max = joy.baseR - joy.knobR;
+    const t = Math.min(1, dist / max);
+
+    const kx = joy.baseX + dx/dist * max * t;
+    const ky = joy.baseY + dy/dist * max * t;
+
+    joy.knobX = kx;
+    joy.knobY = ky;
+    joy.dx = (kx - joy.baseX) / max;
+    joy.dy = (ky - joy.baseY) / max;
+  }
+
+  function isInJoystickArea(sx, sy){
+    return sx >= joy.area.x && sx <= joy.area.x + joy.area.w
+        && sy >= joy.area.y && sy <= joy.area.y + joy.area.h;
+  }
+
+  canvas.addEventListener("pointerdown", (ev) => {
+    ev.preventDefault();
+    const sx = ev.clientX, sy = ev.clientY;
+
+    if (state !== STATE.PLAY) { startGame(); return; }
+
+    if (isInJoystickArea(sx, sy) && !joy.active) {
+      joy.active = true;
+      joy.pointerId = ev.pointerId;
+      canvas.setPointerCapture(ev.pointerId);
+      setJoystickFromPointer(sx, sy);
+    }
+  }, { passive:false });
+
+  canvas.addEventListener("pointermove", (ev) => {
+    if (state !== STATE.PLAY) return;
+    if (!joy.active || ev.pointerId !== joy.pointerId) return;
+    ev.preventDefault();
+    setJoystickFromPointer(ev.clientX, ev.clientY);
+  }, { passive:false });
+
+  canvas.addEventListener("pointerup", (ev) => { if (ev.pointerId === joy.pointerId) resetJoystick(); });
+  canvas.addEventListener("pointercancel", (ev) => { if (ev.pointerId === joy.pointerId) resetJoystick(); });
+
+  // ---------------------------
+  // 7) SPAWN / GAME
+  // ---------------------------
+  function spawnBullet() {
+    if (bullets.length >= maxBullets) return;
+
+    const S = layout.field.s;
+    const pair = choice(PAIRS);
+
+    const wantHiraBullets = isPlayerHangul();
+    const text = wantHiraBullets ? pair.hira : pair.hangul;
+
+    const edge = randInt(4);
+    const pad = 12;
+    let x, y;
+    if (edge === 0) { x = Math.random()*S; y = -pad; }
+    else if (edge === 1) { x = S+pad; y = Math.random()*S; }
+    else if (edge === 2) { x = Math.random()*S; y = S+pad; }
+    else { x = -pad; y = Math.random()*S; }
+
+    const dx = (player.x - x);
+    const dy = (player.y - y);
+    const dist = Math.max(0.001, Math.hypot(dx,dy));
+    const dirx = dx/dist, diry = dy/dist;
+
+    // ✅ 속도는 speedTime 기준(피격 후 리셋 가능)
+    // (이전 요청 유지) 시작 1/2, 증가 1/3
+    const base = 60 + Math.min(260, speedTime * 2);
+    const jitter = (Math.random()*26 - 13);
+    const speed = base + jitter;
+
+    const r = clamp(Math.round(S*0.03), 12, 18);
+    bullets.push({ x, y, vx: dirx*speed, vy: diry*speed, text, pair, r });
+  }
+
+  function startGame(){
+    state = STATE.PLAY;
+    bullets.length = 0;
+    mistakes.clear();
+
+    lives = 3;
+    score = 0;
+    timeAlive = 0;
+    speedTime = 0;
+
+    spawnAcc = 0;
+    spawnRate = 1.6;
+    maxBullets = 180;
+
+    auraT = 0;
+    player.invincible = false;
+
+    const S = layout.field.s;
+    player.x = S*0.5;
+    player.y = S*0.65;
+    setRandomPlayerChar(null);
+
+    resetJoystick();
+  }
+
+  // ---------------------------
+  // 8) RENDER
+  // ---------------------------
+  function roundRect(ctx, x, y, w, h, r) {
+    const rr = Math.min(r, w/2, h/2);
+    ctx.beginPath();
+    ctx.moveTo(x+rr, y);
+    ctx.arcTo(x+w, y, x+w, y+h, rr);
+    ctx.arcTo(x+w, y+h, x, y+h, rr);
+    ctx.arcTo(x, y+h, x, y, rr);
+    ctx.arcTo(x, y, x+w, y, rr);
+    ctx.closePath();
+  }
+
+  function drawTextWithStroke(text, x, y, fontPx, fill, stroke, strokeW=2) {
+    ctx.font = `800 ${fontPx}px system-ui, -apple-system, "Noto Sans KR", "Noto Sans JP", "Apple SD Gothic Neo", sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.lineWidth = strokeW;
+    ctx.strokeStyle = stroke;
+    ctx.fillStyle = fill;
+    ctx.strokeText(text, x, y);
+    ctx.fillText(text, x, y);
+  }
+
+  function renderFieldFrame(){
+    ctx.strokeStyle = "rgba(233,238,248,0.10)";
+    ctx.lineWidth = 1;
+    roundRect(ctx, layout.field.x, layout.field.y, layout.field.s, layout.field.s, sp(16));
+    ctx.stroke();
+  }
+
+  function renderHUD(){
+    const pad = sp(12);
+    const correct = currentCorrectText();
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(layout.field.x, layout.field.y, layout.field.s, layout.field.s);
+    ctx.clip();
+
+    // ✅ HUD 글자도 더 큼
+    ctx.fillStyle = "rgba(233,238,248,0.92)";
+    ctx.font = `700 ${clamp(sp(14), 13, 18)}px system-ui, -apple-system, "Noto Sans KR", "Noto Sans JP", sans-serif`;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "top";
+
+    ctx.fillText(`점수: ${Math.floor(score)}`, layout.field.x + pad, layout.field.y + pad);
+    ctx.fillText(`목숨: ${"●".repeat(lives)}${"○".repeat(Math.max(0,3-lives))}`, layout.field.x + pad, layout.field.y + pad + sp(18));
+    ctx.fillText(`먹어야 하는 글자: ${correct}`, layout.field.x + pad, layout.field.y + pad + sp(36));
+
+    ctx.restore();
+  }
+
+  function renderJoystick(){
+    const yTop = joy.area.y;
+    ctx.fillStyle = "rgba(255,255,255,0.02)";
+    ctx.fillRect(0, yTop, W, joy.area.h);
+
+    ctx.beginPath();
+    ctx.arc(joy.baseX, joy.baseY, joy.baseR, 0, Math.PI*2);
+    ctx.fillStyle = "rgba(233,238,248,0.06)";
+    ctx.fill();
+    ctx.strokeStyle = "rgba(233,238,248,0.14)";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(joy.knobX, joy.knobY, joy.knobR, 0, Math.PI*2);
+    ctx.fillStyle = "rgba(233,238,248,0.18)";
+    ctx.fill();
+    ctx.strokeStyle = "rgba(233,238,248,0.24)";
+    ctx.stroke();
+
+    if (W >= 360) {
+      ctx.fillStyle = COLOR_TEXT_DIM;
+      ctx.font = `600 ${clamp(sp(13), 12, 18)}px system-ui, -apple-system, "Noto Sans KR", "Noto Sans JP", sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      ctx.fillText("하단 조이스틱으로 이동", W/2, yTop + sp(10));
+    }
+  }
+
+  function renderStart(){
+    ctx.fillStyle = COLOR_BG;
+    ctx.fillRect(0,0,W,H);
+
+    ctx.fillStyle = "rgba(255,255,255,0.01)";
+    ctx.fillRect(layout.field.x, layout.field.y, layout.field.s, layout.field.s);
+    renderFieldFrame();
+
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    ctx.fillStyle = "rgba(233,238,248,0.95)";
+    ctx.font = `900 ${clamp(sp(30), 26, 40)}px system-ui, -apple-system, "Noto Sans KR", "Noto Sans JP", sans-serif`;
+    ctx.fillText("히라가나 특훈", W/2, layout.field.y + layout.field.s*0.30);
+
+    ctx.font = `650 ${clamp(sp(15), 14, 20)}px system-ui, -apple-system, "Noto Sans KR", "Noto Sans JP", sans-serif`;
+    ctx.fillStyle = COLOR_TEXT_DIM;
+    const lines = [
+      "원 안 글자와 짝이 되는 글자만 먹기",
+      "틀리면 목숨 -1 (무적 + 짝 번갈아 표시)",
+      "피격 시 탄막이 사라졌다가 다시 진입",
+    ];
+    let y = layout.field.y + layout.field.s*0.44;
+    for (const s of lines){ ctx.fillText(s, W/2, y); y += sp(20); }
+
+    const bw = clamp(sp(170), 150, 220);
+    const bh = clamp(sp(50), 44, 60);
+    const bx = W/2 - bw/2;
+    const by = layout.field.y + layout.field.s*0.64 - bh/2;
+
+    ctx.fillStyle = "rgba(255,255,255,0.06)";
+    ctx.strokeStyle = "rgba(233,238,248,0.18)";
+    ctx.lineWidth = 1;
+    roundRect(ctx, bx, by, bw, bh, sp(16));
+    ctx.fill(); ctx.stroke();
+
+    ctx.fillStyle = "rgba(233,238,248,0.92)";
+    ctx.font = `900 ${clamp(sp(20), 18, 26)}px system-ui, -apple-system, "Noto Sans KR", "Noto Sans JP", sans-serif`;
+    ctx.fillText("시작", W/2, layout.field.y + layout.field.s*0.64);
+
+    renderJoystick();
+  }
+
+  function renderOver(){
+    ctx.fillStyle = COLOR_BG;
+    ctx.fillRect(0,0,W,H);
+
+    ctx.fillStyle = "rgba(255,255,255,0.01)";
+    ctx.fillRect(layout.field.x, layout.field.y, layout.field.s, layout.field.s);
+    renderFieldFrame();
+
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    ctx.fillStyle = "rgba(233,238,248,0.95)";
+    ctx.font = `900 ${clamp(sp(30), 26, 40)}px system-ui, -apple-system, "Noto Sans KR", "Noto Sans JP", sans-serif`;
+    ctx.fillText("게임 오버", W/2, layout.field.y + layout.field.s*0.20);
+
+    ctx.font = `700 ${clamp(sp(16), 14, 22)}px system-ui, -apple-system, "Noto Sans KR", "Noto Sans JP", sans-serif`;
+    ctx.fillStyle = COLOR_TEXT_DIM;
+    ctx.fillText(`최종 점수: ${Math.floor(score)}`, W/2, layout.field.y + layout.field.s*0.29);
+
+    // 틀린 목록 (상위 10개)
+    const arr = Array.from(mistakes.values()).sort((a,b)=>b.count-a.count).slice(0, 10);
+
+    const boxW = Math.min(layout.field.s - sp(18), sp(560));
+    const boxX = W/2 - boxW/2;
+    const boxY = layout.field.y + layout.field.s*0.36;
+    const rowH = clamp(sp(24), 22, 32);
+    const boxH = sp(44) + Math.max(1, arr.length) * rowH + sp(44);
+
+    ctx.fillStyle = "rgba(255,255,255,0.04)";
+    ctx.strokeStyle = "rgba(233,238,248,0.14)";
+    ctx.lineWidth = 1;
+    roundRect(ctx, boxX, boxY, boxW, boxH, sp(16));
+    ctx.fill(); ctx.stroke();
+
+    ctx.textAlign = "left";
+    ctx.textBaseline = "top";
+    ctx.fillStyle = "rgba(233,238,248,0.92)";
+    ctx.font = `800 ${clamp(sp(14), 13, 20)}px system-ui, -apple-system, "Noto Sans KR", "Noto Sans JP", sans-serif`;
+    ctx.fillText("틀린 목록 / 정답 (로마자 포함)", boxX + sp(14), boxY + sp(12));
+
+    ctx.font = `650 ${clamp(sp(13), 12, 18)}px system-ui, -apple-system, "Noto Sans KR", "Noto Sans JP", sans-serif`;
+    ctx.fillStyle = COLOR_TEXT_DIM;
+
+    if (arr.length === 0) {
+      ctx.fillText("틀린 항목이 없습니다! 🎉", boxX + sp(14), boxY + sp(38));
+    } else {
+      let y = boxY + sp(38);
+      for (const it of arr) {
+        const p = it.pair;
+        ctx.fillText(`• ${p.hira} ↔ ${p.hangul} (${p.romaji}) ×${it.count}`, boxX + sp(14), y);
+        y += rowH;
+      }
+    }
+
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "rgba(233,238,248,0.9)";
+    ctx.font = `800 ${clamp(sp(16), 14, 22)}px system-ui, -apple-system, "Noto Sans KR", "Noto Sans JP", sans-serif`;
+    ctx.fillText("탭해서 재도전", W/2, boxY + boxH - sp(20));
+
+    renderJoystick();
+  }
+
+  function renderPlay(){
+    ctx.fillStyle = COLOR_BG;
+    ctx.fillRect(0,0,W,H);
+
+    ctx.fillStyle = "rgba(255,255,255,0.01)";
+    ctx.fillRect(layout.field.x, layout.field.y, layout.field.s, layout.field.s);
+    renderFieldFrame();
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(layout.field.x, layout.field.y, layout.field.s, layout.field.s);
+    ctx.clip();
+
+    // aura
+    if (auraT > 0) {
+      const t = auraT / auraDuration;
+      const ps = toScreen(player.x, player.y);
+      ctx.beginPath();
+      ctx.arc(ps.x, ps.y, auraRadius * (1 - t*0.15), 0, Math.PI*2);
+      ctx.strokeStyle = `rgba(233,238,248,${0.08 + 0.12*t})`;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+
+    // ✅ 탄막 글자 더 크게 (모바일 가독성 강화)
+    const bulletFont = clamp(sp(26), 22, 40);
+    for (const b of bullets) {
+      const s = toScreen(b.x, b.y);
+      drawTextWithStroke(b.text, s.x, s.y, bulletFont, COLOR_TEXT, COLOR_STROKE, 2);
+    }
+
+    // player
+    const ps = toScreen(player.x, player.y);
+    const alpha = player.invincible ? (player.blinkShowAlt ? 0.35 : 1.0) : 1.0;
+
+    ctx.globalAlpha = alpha;
+    ctx.beginPath();
+    ctx.fillStyle = COLOR_PLAYER_FILL;
+    ctx.arc(ps.x, ps.y, player.r, 0, Math.PI*2);
+    ctx.fill();
+    ctx.globalAlpha = 1.0;
+
+    let pChar = player.char;
+    if (player.invincible) pChar = player.blinkShowAlt ? player.blinkB : player.blinkA;
+
+    // ✅ 플레이어 글자도 더 크게
+    ctx.font = `900 ${clamp(Math.round(player.r*1.05), 18, 32)}px system-ui, -apple-system, "Noto Sans KR", "Noto Sans JP", sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = COLOR_PLAYER_TEXT;
+    ctx.fillText(pChar, ps.x, ps.y);
+
+    if (player.invincible) {
+      const pulse = 1 + 0.08 * Math.sin(performance.now() * 0.02);
+      ctx.beginPath();
+      ctx.arc(ps.x, ps.y, player.r * 1.25 * pulse, 0, Math.PI*2);
+      ctx.strokeStyle = "rgba(233,238,248,0.32)";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+
+    ctx.restore();
+
+    renderHUD();
+    renderJoystick();
+  }
+
+  function render(){
+    if (state === STATE.START) renderStart();
+    else if (state === STATE.PLAY) renderPlay();
+    else renderOver();
+  }
+
+  // ---------------------------
+  // 9) UPDATE LOOP
+  // ---------------------------
+  let lastT = performance.now();
+  function tick(now){
+    const dt = Math.min(0.033, (now - lastT) / 1000);
+    lastT = now;
+
+    if (state === STATE.PLAY) {
+      timeAlive += dt;
+
+      // ✅ 스피드 타이머는 "탄막이 실제로 들어오기 시작한 뒤"에만 증가시키고 싶음
+      // 요구: "4회 깜빡인 이후부터 탄막이 진입"
+      const allowSpawn = !(player.invincible && player.blinkCount < 4);
+
+      if (allowSpawn) speedTime += dt;
+
+      // 난이도: 스폰/최대탄막 (기존 유지)
+      spawnRate = Math.min(10.0, 1.6 + timeAlive * 0.08);
+      maxBullets = Math.min(420, 180 + Math.floor(timeAlive * 3.0));
+
+      // ✅ 깜빡임 4회 전에는 탄막 생성 완전 중지 + 화면도 비우기
+      if (!allowSpawn) {
+        if (bullets.length) bullets.length = 0;
+        spawnAcc = 0;
+      } else {
+        spawnAcc += dt * spawnRate;
+        while (spawnAcc >= 1) { spawnAcc -= 1; spawnBullet(); }
+      }
+
+      // 이동
+      const S = layout.field.s;
+      const len = Math.hypot(joy.dx, joy.dy);
+      const mag = clamp(len, 0, 1);
+      player.x += joy.dx * player.speed * mag * dt;
+      player.y += joy.dy * player.speed * mag * dt;
+      player.x = clamp(player.x, player.r, S - player.r);
+      player.y = clamp(player.y, player.r, S - player.r);
+
+      // 무적 깜빡임 업데이트
+      if (player.invincible) {
+        player.blinkT += dt;
+        const toggles = Math.floor(player.blinkT / player.blinkInterval);
+        if (toggles > player.blinkCount) {
+          player.blinkCount = toggles;
+          player.blinkShowAlt = !player.blinkShowAlt;
+        }
+        if (player.blinkT >= player.blinkTotal) {
+          player.invincible = false;
+          setRandomPlayerChar(player.char);
+        }
+      }
+
+      if (auraT > 0) auraT = Math.max(0, auraT - dt);
+
+      // 충돌
+      const correctText = currentCorrectText();
+      for (let i = bullets.length - 1; i >= 0; i--) {
+        const b = bullets[i];
+        b.x += b.vx * dt;
+        b.y += b.vy * dt;
+
+        if (b.x < -80 || b.x > S+80 || b.y < -80 || b.y > S+80) {
+          bullets.splice(i,1);
+          continue;
         }
 
-        // 전역 함수들 (HTML에서 호출)
-        function startQuiz(quizType) {
-            quiz.startQuiz(quizType);
+        const d = Math.hypot(b.x - player.x, b.y - player.y);
+        if (d <= b.r + player.r) {
+          const isCorrect = (b.text === correctText);
+          bullets.splice(i,1);
+
+          if (isCorrect) {
+             onEatCorrect(b.pair);
+          } else if (!player.invincible) {
+             onHitWrong(b.pair);
+             break; // ★중요: onHitWrong에서 bullets를 비우므로 루프 종료
+          }
         }
+      }
 
-        function showAnswer() {
-            quiz.showAnswer();
-        }
+      score += dt * 8;
+    }
 
-        function nextQuestion() {
-            quiz.nextQuestion();
-        }
+    render();
+    requestAnimationFrame(tick);
+  }
 
-        function goHome() {
-            quiz.goHome();
-        }
-
-        function goBackToQuestion() {
-            quiz.goBackToQuestion();
-        }
-
-        function restartQuiz() {
-            quiz.restartQuiz();
-        }
-
-        function toggleOrder(orderType) {
-            quiz.toggleOrder(orderType);
-        }
-
-        // 앱 초기화
-        const quiz = new ClimeQuizApp();
-        quiz.init();
-
-        // 키보드 지원
-        document.addEventListener('keydown', function(e) {
-            const currentScreen = document.querySelector('.screen.active').id;
-            
-            if (currentScreen === 'question-screen') {
-                if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    quiz.showAnswer();
-                } else if (e.key === 'ArrowRight' || e.key === 'n' || e.key === 'N') {
-                    e.preventDefault();
-                    quiz.nextQuestion();
-                }
-            } else if (currentScreen === 'answer-screen') {
-                if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowRight' || e.key === 'n' || e.key === 'N') {
-                    e.preventDefault();
-                    quiz.nextQuestion();
-                } else if (e.key === 'ArrowLeft' || e.key === 'b' || e.key === 'B') {
-                    e.preventDefault();
-                    quiz.goBackToQuestion();
-                }
-            } else if (currentScreen === 'completion-screen') {
-                if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    quiz.goHome();
-                } else if (e.key === 'r' || e.key === 'R') {
-                    e.preventDefault();
-                    quiz.restartQuiz();
-                }
-            }
-            
-            // ESC 키로 홈으로 이동
-            if (e.key === 'Escape') {
-                quiz.goHome();
-            }
-        });
-
-        // 터치 이벤트 최적화
-        document.addEventListener('touchstart', function() {}, {passive: true});
-    </script>
+  resetJoystick();
+  requestAnimationFrame(tick);
+})();
+</script>
 </body>
 </html>
